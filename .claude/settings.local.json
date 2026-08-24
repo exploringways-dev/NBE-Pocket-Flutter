@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/ahmedramy/StudioProjects/untitled -iname \"*.png\" -mtime -1 2>/dev/null; find /tmp /private/tmp -iname \"*.png\" -mmin -30 2>/dev/null | head -20; find ~/Downloads -iname \"*.png\" -mmin -60 2>/dev/null)",
+      "Read(//private/tmp/**)",
+      "Read(//Users/ahmedramy/Downloads/**)"
+    ]
+  }
+}

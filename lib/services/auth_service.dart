@@ -54,30 +54,41 @@ class AuthService {
       }
 
       try {
-        // Try to decode as JSON
         final data = jsonDecode(response.body);
-        final token = data['token'] as String?;
+        
+        // 1. Look for various common token keys (ASP.NET often capitalizes properties)
+        final token = (data['token'] ?? data['Token'] ?? data['accessToken'])?.toString();
+        
         if (token != null) {
           await _storage.write(key: 'jwt_token', value: token);
+          return token;
+        } else {
+          // 2. No more silent failures! This will show exactly what your backend returned in the red snackbar.
+          throw Exception('No token found. Backend returned: $data');
         }
-        return token;
       } catch (e) {
+        // Prevent our custom exception from being caught by the fallback below
+        if (e.toString().contains('No token found')) rethrow;
+        
         // Fallback: If your C# API returned just a raw JWT string instead of JSON
         final token = response.body.trim();
         await _storage.write(key: 'jwt_token', value: token);
         return token;
       }
     } else {
-      // Safely handle API login errors (like 401 Unauthorized)
       if (response.body.isEmpty) {
         throw Exception('Login failed (Status ${response.statusCode})');
       }
-      
       try {
         final error = jsonDecode(response.body);
+        if (error['errors'] != null) {
+          final firstError = error['errors'].values.first[0];
+          throw Exception(firstError);
+        }
         throw Exception(error['message'] ?? error['title'] ?? 'Login failed');
-      } catch (_) {
-        throw Exception(response.body); // Fallback if API sent plain text error
+      } catch (e) {
+         if (e is FormatException) throw Exception(response.body);
+         rethrow;
       }
     }
   }

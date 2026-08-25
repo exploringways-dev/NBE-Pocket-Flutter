@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key});
+  final String email;
+  final String token;
+
+  const ResetPasswordScreen({
+    super.key,
+    required this.email,
+    required this.token,
+  });
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -26,19 +35,43 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // TODO: replace with your real "set new password" API call, e.g.
-    // await authRepository.resetPassword(_newPasswordController.text);
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final url = Uri.parse('http://10.0.2.2:5152/api/Auth/reset-password');
+      
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': widget.email,
+          'token': widget.token,
+          'newPassword': _newPasswordController.text,
+        }),
+      );
 
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Password updated successfully')),
-    );
-    Navigator.of(context).pop();
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password updated successfully')),
+        );
+        // Returns the user to the Login screen
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to reset. The link may have expired.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Network error. Check your connection.')),
+      );
+    }
   }
 
+  // YOUR CUSTOM FIELD UI RESTORED!
   Widget _buildField({
     required String label,
     required String hint,
@@ -93,6 +126,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
+        top: false, // Allows gradient to hit the top of the screen
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -141,9 +175,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
   }
 
+  // YOUR CUSTOM GRADIENT HEADER RESTORED!
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 8, 24, 24),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,

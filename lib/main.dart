@@ -1,19 +1,81 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:app_links/app_links.dart';
+
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
+import 'screens/reset_password_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const NBEApp());
 }
 
-class NBEApp extends StatelessWidget {
+class NBEApp extends StatefulWidget {
   const NBEApp({super.key});
+
+  @override
+  State<NBEApp> createState() => _NBEAppState();
+}
+
+class _NBEAppState extends State<NBEApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initDeepLinks() async {
+    _appLinks = AppLinks();
+
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleIncomingLink(initialUri);
+      }
+    } catch (e) {
+      debugPrint("Failed to get initial link: $e");
+    }
+
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleIncomingLink(uri);
+    }, onError: (err) {
+      debugPrint("Link stream error: $err");
+    });
+  }
+
+  void _handleIncomingLink(Uri uri) {
+    if (uri.scheme == 'nbepocket' && uri.host == 'reset-password') {
+      
+      final email = uri.queryParameters['email'];
+      final token = uri.queryParameters['token'];
+
+      if (email != null && token != null) {
+        // Navigate to the reset password screen with the extracted data
+        _navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (context) => ResetPasswordScreen(email: email, token: token),
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'NBE',
+      navigatorKey: _navigatorKey, // This is crucial for background routing!
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
       home: const LoginScreen(),

@@ -16,6 +16,7 @@ dependencies:
   http: ^1.2.0
   flutter_secure_storage: ^9.0.0
   vector_math: ^2.4.2
+  app_links: ^7.2.1
 
 dev_dependencies:
   flutter_test:

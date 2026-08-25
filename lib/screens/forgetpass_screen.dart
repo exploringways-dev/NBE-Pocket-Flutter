@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -21,21 +23,45 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _handleSendResetCode() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
+  if (!_formKey.currentState!.validate()) return;
+  setState(() => _isLoading = true);
 
-    // TODO: replace with your real "send reset code" API call, e.g.
-    // await authRepository.sendResetCode(_contactController.text);
-    await Future.delayed(const Duration(seconds: 1));
+  try {
+    // 1. Point this to your C# backend (using 10.0.2.2 for Android Emulator)
+    // IMPORTANT: Make sure this port (5152) matches the port your C# server is running on!
+    final url = Uri.parse('http://10.0.2.2:5152/api/Auth/forgot-password');
+
+    // 2. Make the actual HTTP POST request
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': _contactController.text.trim(),
+      }),
+    );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
+    // 3. Handle the C# backend response
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reset link sent to your email!')),
+      );
+      Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Something went wrong. Please try again.')),
+      );
+    }
+  } catch (e) {
+    if (!mounted) return;
+    setState(() => _isLoading = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reset code sent — check your phone or email')),
+      const SnackBar(content: Text('Network error. Check your connection to the server.')),
     );
-    Navigator.of(context).pop();
   }
+}
 
   @override
   Widget build(BuildContext context) {

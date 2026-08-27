@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
-
+import 'screens/verify_email_screen.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
 import 'screens/reset_password_screen.dart';
@@ -55,19 +55,24 @@ class _NBEAppState extends State<NBEApp> {
   }
 
   void _handleIncomingLink(Uri uri) {
-    if (uri.scheme == 'nbepocket' && uri.host == 'reset-password') {
-      
-      final email = uri.queryParameters['email'];
-      final token = uri.queryParameters['token'];
+    debugPrint("🔗 Link detected by app_links: $uri");
+    
+    final email = uri.queryParameters['email'];
+    final token = uri.queryParameters['token'];
 
-      if (email != null && token != null) {
-        // Navigate to the reset password screen with the extracted data
+    if (email != null && token != null) {
+      if (uri.scheme == 'nbepocket' && uri.host == 'reset-password') {
         _navigatorKey.currentState?.push(
-          MaterialPageRoute(
-            builder: (context) => ResetPasswordScreen(email: email, token: token),
-          ),
+          MaterialPageRoute(builder: (context) => ResetPasswordScreen(email: email, token: token)),
+        );
+      } else if (uri.scheme == 'nbepocket' && uri.host == 'verify-email') {
+        // ADDED THIS: Route for email verification
+        _navigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (context) => VerifyEmailScreen(email: email, token: token)),
         );
       }
+    } else {
+      debugPrint("❌ ERROR: Missing email or token in the URL!");
     }
   }
 
@@ -75,10 +80,41 @@ class _NBEAppState extends State<NBEApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'NBE',
-      navigatorKey: _navigatorKey, // This is crucial for background routing!
+      navigatorKey: _navigatorKey, 
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
       home: const LoginScreen(),
+
+      // 1. ADDED THIS: Flutter natively intercepts deep links here!
+      onGenerateRoute: (settings) {
+        if (settings.name != null && settings.name!.contains('token=')) {
+          final uri = Uri.parse(settings.name!);
+          final email = uri.queryParameters['email'];
+          final token = uri.queryParameters['token'];
+
+          if (email != null && token != null) {
+            // Check if the URL contains reset-password or verify-email
+            if (settings.name!.contains('reset-password')) {
+              return MaterialPageRoute(
+                builder: (context) => ResetPasswordScreen(email: email, token: token),
+              );
+            } else if (settings.name!.contains('verify-email')) {
+              // ADDED THIS: Native route for email verification
+              return MaterialPageRoute(
+                builder: (context) => VerifyEmailScreen(email: email, token: token),
+              );
+            }
+          }
+        }
+        return null;
+      },
+
+      // 2. This now acts as a true safety net, not a screen hider
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        );
+      },
     );
   }
 }

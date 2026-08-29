@@ -83,7 +83,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const Text(
-                        'PHONE NUMBER OR EMAIL',
+                        'EMAIL',
                         style: TextStyle(
                           color: AppColors.labelGray,
                           fontSize: 12,
@@ -97,7 +97,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         keyboardType: TextInputType.emailAddress,
                         style: const TextStyle(fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: '01x-xxxx-xxxx or email@domain.com',
+                          hintText: 'example@domain.com',
                           hintStyle: const TextStyle(
                             color: AppColors.hintGray,
                             fontSize: 13.5,
@@ -125,12 +125,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                         ),
                         validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Enter your phone number or email'
+                            ? 'Enter your email'
                             : null,
                       ),
                       const SizedBox(height: 20),
                       PrimaryButton(
-                        label: 'Send Reset Code',
+                        label: 'Reset Password',
                         isLoading: _isLoading,
                         onPressed: _handleSendResetCode,
                       ),
@@ -197,7 +197,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
           const SizedBox(height: 6),
           const Text(
-            "We'll send a reset code to your phone or email",
+            "We'll send you an email to reset your password",
             style: TextStyle(fontSize: 13, color: Colors.white70),
           ),
         ],

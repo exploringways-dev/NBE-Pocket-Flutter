@@ -155,12 +155,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 LabeledTextField(
-                                  label: 'Username',
-                                  hint: 'your.username',
+                                  label: 'Email',
+                                  hint: 'example@domain.com',
                                   controller: _usernameController,
                                   icon: Icons.person_outline,
                                   validator: (v) => (v == null || v.isEmpty)
-                                      ? 'Enter your username'
+                                      ? 'Enter your email'
                                       : null,
                                 ),
                                 const SizedBox(height: 12),

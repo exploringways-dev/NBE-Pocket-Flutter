@@ -13,11 +13,11 @@ class ApiClient {
 
   String get baseUrl {
     if (kIsWeb || Platform.isWindows) {
-      return 'https://localhost:5152/api';
+      return 'https://192.168.56.1/NBEPocketAPI/api';
     } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:5152/api';
+      return 'https://192.168.56.1/NBEPocketAPI/api';
     } else {
-      return 'http://localhost:5152/api';
+      return 'https://192.168.56.1/NBEPocketAPI/api';
     }
   }
 

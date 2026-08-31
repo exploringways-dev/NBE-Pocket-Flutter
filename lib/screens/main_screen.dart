@@ -6,8 +6,6 @@ import 'package:flutter/rendering.dart';
 import 'notifications_page.dart' show NotificationsPage;
 import '../services/auth_service.dart';
 
-
-
 void main() {
   runApp(const NBEApp());
 }
@@ -1435,8 +1433,7 @@ class _SheetTitleRow extends StatelessWidget {
     required this.title,
     this.leading,
     this.onClose,
-    this.centered = false,
-  });
+  }) : centered = false;
 
   @override
   Widget build(BuildContext context) {

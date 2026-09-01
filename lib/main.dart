@@ -101,7 +101,7 @@ class _NBEAppState extends State<NBEApp> {
       navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      home: const _SessionGate(),
+      home: const LoginScreen(),
 
       // 1. ADDED THIS: Flutter natively intercepts deep links here!
       onGenerateRoute: (settings) {

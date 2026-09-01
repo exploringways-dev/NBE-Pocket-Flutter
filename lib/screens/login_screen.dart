@@ -86,9 +86,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (mounted) {
+
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AppShell()),
-        );
+        MaterialPageRoute(builder: (_) => const AppShell()),
+       );
       }
     } on ApiException catch (error) {
       if (mounted) {

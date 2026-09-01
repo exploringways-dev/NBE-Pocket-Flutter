@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'app_shell.dart';
 import 'login_screen.dart';
+import '../services/auth_service.dart';
 import 'notifications_page.dart' show NotificationsPage;
 
 void main() {
@@ -21,7 +22,7 @@ class NBEApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F6F5),
         useMaterial3: true,
       ),
-      home: const AppShell(),
+      home: const LoginScreen(),
     );
   }
 }
@@ -2440,12 +2441,19 @@ class _ProfilePageState extends State<_ProfilePage> {
                 style: TextStyle(color: AppColors.textMuted)),
           ),
           TextButton(
-            onPressed: () {
+            // Make this async!
+            onPressed: () async { 
               Navigator.pop(ctx);
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
+              
+              // ADD THIS LINE: Actually wipe the secure storage!
+              await AuthService().logout(); 
+
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
             },
             child: const Text(
               'Log Out',

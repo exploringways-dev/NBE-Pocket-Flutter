@@ -188,9 +188,12 @@ class ApiClient {
   }
 
   static Future<void> clearSession() async {
+    // 1. Wipe the API session tokens
     await _storage.delete(key: accessTokenKey);
     await _storage.delete(key: refreshTokenKey);
     await _storage.delete(key: accessExpiryKey);
     await _storage.delete(key: 'jwt_token');
+    await _storage.delete(key: 'email');    // Change to your actual storage key if different
+    await _storage.delete(key: 'password'); // Change to your actual storage key if different
   }
 }

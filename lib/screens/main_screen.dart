@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'app_shell.dart';
 import 'login_screen.dart';
-import 'package:vector_math/vector_math_64.dart' hide Colors;
-import 'package:flutter/rendering.dart';
 import 'notifications_page.dart' show NotificationsPage;
-import '../services/auth_service.dart';
-import '../services/user_service.dart';
-import '../models/user_profile.dart';
 
 void main() {
   runApp(const NBEApp());
@@ -25,7 +21,7 @@ class NBEApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF5F6F5),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const AppShell(),
     );
   }
 }
@@ -114,19 +110,55 @@ const Map<String, CategoryMeta> kCategoryMeta = {
 CategoryMeta metaFor(String category) =>
     kCategoryMeta[category] ?? kCategoryMeta['Other']!;
 
+// Details collected from the "Enter Manually" card form.
+typedef NewCardDetails = ({
+  String holderName,
+  String cardNumber,
+  String expiry,
+  String network,
+});
+
+/// Resolves the card network from its number, same rule real issuers use:
+/// Visa numbers start with 4; Mastercard numbers start with 51-55 or the
+/// newer 2221-2720 range. Falls back to Visa when the number is too short
+/// or doesn't match either pattern.
+String detectCardNetwork(String cardNumber) {
+  final digits = cardNumber.replaceAll(RegExp(r'\D'), '');
+  if (digits.isEmpty) return 'Visa';
+  if (digits.startsWith('4')) return 'Visa';
+  final firstTwo = int.tryParse(digits.substring(0, digits.length.clamp(0, 2)));
+  if (firstTwo != null && firstTwo >= 51 && firstTwo <= 55) return 'Mastercard';
+  final firstFour =
+      digits.length >= 4 ? int.tryParse(digits.substring(0, 4)) : null;
+  if (firstFour != null && firstFour >= 2221 && firstFour <= 2720) {
+    return 'Mastercard';
+  }
+  return 'Visa';
+}
+
+// A single physical/virtual card shown in the card stack.
 class CardData {
-  final String type;
+  final String type; // 'DEBIT' or 'CREDIT'
   final String balanceLabel;
   final String balanceValue;
   final String last4;
-  final String cardName;
+  final String holderName;
+  final String expiry; // 'MM/YY'
+  final String network; // 'Visa' or 'Mastercard'
+  final List<Color> gradientColors;
 
   const CardData({
     required this.type,
     required this.balanceLabel,
     required this.balanceValue,
     required this.last4,
-    required this.cardName,
+    required this.holderName,
+    required this.expiry,
+    required this.network,
+    this.gradientColors = const [
+      AppColors.cardGreenTop,
+      AppColors.cardGreenBottom,
+    ],
   });
 }
 
@@ -135,7 +167,9 @@ const _debitCard = CardData(
   balanceLabel: 'AVAILABLE BALANCE',
   balanceValue: 'EGP 24,851.42',
   last4: '4821',
-  cardName: 'NBE Classic',
+  holderName: 'Ahmed Ramy Zahran',
+  expiry: '08/28',
+  network: 'Visa',
 );
 
 const _creditCard = CardData(
@@ -143,7 +177,10 @@ const _creditCard = CardData(
   balanceLabel: 'AVAILABLE LIMIT',
   balanceValue: 'EGP 142,500.00',
   last4: '2941',
-  cardName: 'Investment',
+  holderName: 'Ahmed Ramy Zahran',
+  expiry: '11/27',
+  network: 'Mastercard',
+  gradientColors: [Color(0xFF2B2B2B), Color(0xFF0A0A0A)],
 );
 
 class BudgetItem {
@@ -175,6 +212,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _frontCardIndex = 0;
   bool _balanceHidden = false;
+
+  final List<CardData> _cards = [_debitCard, _creditCard];
 
   final List<BudgetItem> budgetItems = const [
     BudgetItem(
@@ -238,6 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   ];
 
+  // ---------- Sheet openers ----------
   void _openSheet(Widget Function(BuildContext) builder) {
     showModalBottomSheet(
       context: context,
@@ -256,7 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         onEnterManually: () {
           Navigator.pop(ctx);
-          _openCardDetailsSheet();
+          _openCardDetailsSheet(onAdded: _addCard);
         },
       ),
     );
@@ -268,14 +308,38 @@ class _HomeScreenState extends State<HomeScreen> {
         onAllow: () => Navigator.pop(ctx),
         onEnterManually: () {
           Navigator.pop(ctx);
-          _openCardDetailsSheet();
+          _openCardDetailsSheet(onAdded: _addCard);
         },
       ),
     );
   }
 
-  void _openCardDetailsSheet() {
-    _openSheet((ctx) => const _CardDetailsSheet());
+  void _openCardDetailsSheet({ValueChanged<NewCardDetails>? onAdded}) {
+    _openSheet((ctx) => _CardDetailsSheet(onAdded: onAdded));
+  }
+
+  void _addCard(NewCardDetails details) {
+    final digits = details.cardNumber.replaceAll(RegExp(r'\D'), '');
+    final last4 =
+        digits.length >= 4 ? digits.substring(digits.length - 4) : '0000';
+
+    setState(() {
+      _frontCardIndex = 0;
+      _cards.insert(
+        0,
+        CardData(
+          type: 'DEBIT',
+          balanceLabel: 'AVAILABLE BALANCE',
+          balanceValue: 'EGP 33,252.00',
+          last4: last4,
+          holderName: details.holderName.trim().isEmpty
+              ? 'Ahmed Ramy Zahran'
+              : details.holderName.trim(),
+          expiry: details.expiry.trim().isEmpty ? 'MM/YY' : details.expiry,
+          network: details.network,
+        ),
+      );
+    });
   }
 
   void _openSendMoneySheet() {
@@ -298,7 +362,40 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openAddTransactionSheet() {
-    _openSheet((ctx) => const _AddTransactionSheet());
+    _openSheet((ctx) => _AddTransactionSheet(onAdded: _addTransaction));
+  }
+
+  void _addTransaction(NewTransactionDetails details) {
+    final amount = double.tryParse(details.amount.trim()) ?? 0;
+    final formatted = _formatAmount(amount);
+    setState(() {
+      transactions.insert(
+        0,
+        Transaction(
+          title: details.title.trim().isEmpty
+              ? 'Manual Transaction'
+              : details.title.trim(),
+          category: details.category,
+          time: details.date.trim().isEmpty ? 'Today' : details.date.trim(),
+          amount: details.isExpense ? 'EGP $formatted' : '+EGP $formatted',
+          isCredit: !details.isExpense,
+        ),
+      );
+    });
+  }
+
+  String _formatAmount(double v) {
+    final s = v.truncateToDouble() == v
+        ? v.toStringAsFixed(0)
+        : v.toStringAsFixed(2);
+    final parts = s.split('.');
+    final digits = parts[0];
+    final buf = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buf.write(',');
+      buf.write(digits[i]);
+    }
+    return parts.length > 1 ? '${buf.toString()}.${parts[1]}' : buf.toString();
   }
 
   void _openProfilePage() {
@@ -332,16 +429,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final cardWidgets = <Widget>[
-      _BankCard(
-        data: _debitCard,
-        hidden: _balanceHidden,
-        onToggleHidden: () => setState(() => _balanceHidden = !_balanceHidden),
-      ),
-      _BankCard(
-        data: _creditCard,
-        hidden: _balanceHidden,
-        onToggleHidden: () => setState(() => _balanceHidden = !_balanceHidden),
-      ),
+      for (final card in _cards)
+        _BankCard(
+          data: card,
+          hidden: _balanceHidden,
+          onToggleHidden: () =>
+              setState(() => _balanceHidden = !_balanceHidden),
+        ),
       _BankCardPlaceholder(onTap: _openAddCardSheet),
     ];
 
@@ -451,7 +545,7 @@ class _GreenHeader extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  'Nour Hassan El-Sayed',
+                  'Ahmed Ramy Zahran',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 19,
@@ -476,7 +570,7 @@ class _GreenHeader extends StatelessWidget {
                   radius: 20,
                   backgroundColor: AppColors.gold,
                   child: const Text(
-                    'NS',
+                    'AZ',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -662,7 +756,7 @@ class _BankCard extends StatelessWidget {
   });
 
   Widget _networkBadge() {
-    if (data.type == 'CREDIT') {
+    if (data.network == 'Mastercard') {
       return SizedBox(
         width: 34,
         height: 20,
@@ -709,10 +803,10 @@ class _BankCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.cardGreenTop, AppColors.cardGreenBottom],
+          colors: data.gradientColors,
         ),
         boxShadow: [
           BoxShadow(
@@ -795,6 +889,28 @@ class _BankCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'VALID THRU',
+                    style: TextStyle(
+                      color: Color(0xFFBFCFC6),
+                      fontSize: 7.5,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  Text(
+                    data.expiry,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
               const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -837,22 +953,23 @@ class _BankCard extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '••••  ••••  ••••  ${data.last4}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              Text(
-                data.cardName,
-                style: const TextStyle(color: Color(0xFFBFCFC6), fontSize: 11),
-              ),
-            ],
+          Text(
+            '••••  ••••  ••••  ${data.last4}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            data.holderName.toUpperCase(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
           ),
         ],
       ),
@@ -1435,7 +1552,8 @@ class _SheetTitleRow extends StatelessWidget {
     required this.title,
     this.leading,
     this.onClose,
-  }) : centered = false;
+    this.centered = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1837,14 +1955,26 @@ class _CameraAccessSheet extends StatelessWidget {
 // =====================================================================
 
 class _CardDetailsSheet extends StatefulWidget {
-  const _CardDetailsSheet();
+  const _CardDetailsSheet({this.onAdded});
+
+  final ValueChanged<NewCardDetails>? onAdded;
 
   @override
   State<_CardDetailsSheet> createState() => _CardDetailsSheetState();
 }
 
 class _CardDetailsSheetState extends State<_CardDetailsSheet> {
-  String _network = 'Visa';
+  final _holderNameCtrl = TextEditingController();
+  final _cardNumberCtrl = TextEditingController();
+  final _expiryCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _holderNameCtrl.dispose();
+    _cardNumberCtrl.dispose();
+    _expiryCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1857,10 +1987,12 @@ class _CardDetailsSheetState extends State<_CardDetailsSheet> {
             _SheetTitleRow(
                 title: 'Card Details', onClose: () => Navigator.pop(context)),
             const _SheetLabel('CARDHOLDER NAME'),
-            const _SheetInputField(hint: 'As printed on card'),
+            _SheetInputField(
+                hint: 'As printed on card', controller: _holderNameCtrl),
             const _SheetLabel('CARD NUMBER'),
-            const _SheetInputField(
+            _SheetInputField(
                 hint: '•••• •••• •••• ••••',
+                controller: _cardNumberCtrl,
                 keyboardType: TextInputType.number),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1868,9 +2000,9 @@ class _CardDetailsSheetState extends State<_CardDetailsSheet> {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      _SheetLabel('EXPIRY'),
-                      _SheetInputField(hint: 'MM/YY'),
+                    children: [
+                      const _SheetLabel('EXPIRY'),
+                      _SheetInputField(hint: 'MM/YY', controller: _expiryCtrl),
                     ],
                   ),
                 ),
@@ -1887,68 +2019,20 @@ class _CardDetailsSheetState extends State<_CardDetailsSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: _NetworkToggle(
-                    label: 'Visa',
-                    selected: _network == 'Visa',
-                    onTap: () => setState(() => _network = 'Visa'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _NetworkToggle(
-                    label: 'Mastercard',
-                    selected: _network == 'Mastercard',
-                    onTap: () => setState(() => _network = 'Mastercard'),
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 18),
             _SheetButton(
                 label: 'Add Card',
                 color: AppColors.darkGreen,
-                onTap: () => Navigator.pop(context)),
+                onTap: () {
+                  Navigator.pop(context);
+                  widget.onAdded?.call((
+                    holderName: _holderNameCtrl.text,
+                    cardNumber: _cardNumberCtrl.text,
+                    expiry: _expiryCtrl.text,
+                    network: detectCardNetwork(_cardNumberCtrl.text),
+                  ));
+                }),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NetworkToggle extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _NetworkToggle({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.darkGreen : const Color(0xFFF2F2ED),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Container(
-          height: 44,
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF3A3A3A),
-              fontWeight: FontWeight.w700,
-              fontSize: 13.5,
-            ),
-          ),
         ),
       ),
     );
@@ -2129,8 +2213,18 @@ class _PaySheet extends StatelessWidget {
 // ---------- Sheet 7: Add Transaction ----------
 // =====================================================================
 
+typedef NewTransactionDetails = ({
+  String title,
+  String amount,
+  String date,
+  String category,
+  bool isExpense,
+});
+
 class _AddTransactionSheet extends StatefulWidget {
-  const _AddTransactionSheet();
+  const _AddTransactionSheet({this.onAdded});
+
+  final ValueChanged<NewTransactionDetails>? onAdded;
 
   @override
   State<_AddTransactionSheet> createState() => _AddTransactionSheetState();
@@ -2139,6 +2233,8 @@ class _AddTransactionSheet extends StatefulWidget {
 class _AddTransactionSheetState extends State<_AddTransactionSheet> {
   bool _isExpense = true;
   String _category = 'Other';
+  final _titleController = TextEditingController();
+  final _amountController = TextEditingController();
   final _dateController = TextEditingController();
 
   static const _categories = [
@@ -2168,6 +2264,8 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
 
   @override
   void dispose() {
+    _titleController.dispose();
+    _amountController.dispose();
     _dateController.dispose();
     super.dispose();
   }
@@ -2208,10 +2306,14 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
               ],
             ),
             const SizedBox(height: 14),
-            const _SheetInputField(hint: 'Transaction name'),
+            _SheetInputField(
+                hint: 'Transaction name', controller: _titleController),
             const SizedBox(height: 12),
-            const _SheetInputField(
-                hint: 'Amount in EGP', keyboardType: TextInputType.number),
+            _SheetInputField(
+              hint: 'Amount in EGP',
+              controller: _amountController,
+              keyboardType: TextInputType.number,
+            ),
             const SizedBox(height: 12),
             _SheetInputField(
               hint: 'mm/dd/yyyy',
@@ -2231,7 +2333,16 @@ class _AddTransactionSheetState extends State<_AddTransactionSheet> {
             _SheetButton(
                 label: 'Add Transaction',
                 color: AppColors.darkGreen,
-                onTap: () => Navigator.pop(context)),
+                onTap: () {
+                  Navigator.pop(context);
+                  widget.onAdded?.call((
+                    title: _titleController.text,
+                    amount: _amountController.text,
+                    date: _dateController.text,
+                    category: _category,
+                    isExpense: _isExpense,
+                  ));
+                }),
           ],
         ),
       ),
@@ -2304,7 +2415,6 @@ class _ProfilePageState extends State<_ProfilePage> {
   String _language = 'EN';
   bool _faceId = true;
   bool _smartInsights = false;
-  late final Future<UserProfile> _profile = UserService().getProfile();
 
   void _openBottomSheet(WidgetBuilder builder) {
     showModalBottomSheet(
@@ -2330,15 +2440,12 @@ class _ProfilePageState extends State<_ProfilePage> {
                 style: TextStyle(color: AppColors.textMuted)),
           ),
           TextButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(ctx);
-              await AuthService().logout();
-              if (mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
             },
             child: const Text(
               'Log Out',
@@ -2413,15 +2520,13 @@ class _ProfilePageState extends State<_ProfilePage> {
                             CircleAvatar(
                               radius: 28,
                               backgroundColor: Colors.white.withOpacity(0.15),
-                              child: FutureBuilder<UserProfile>(
-                                  future: _profile,
-                                  builder: (context, snapshot) => Text(
-                                        snapshot.data?.initials ?? '--',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 18),
-                                      )),
+                              child: const Text(
+                                'AZ',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 18),
+                              ),
                             ),
                             Positioned(
                               right: -2,
@@ -2452,20 +2557,15 @@ class _ProfilePageState extends State<_ProfilePage> {
                             children: [
                               Row(
                                 children: [
-                                  Flexible(
-                                    child: FutureBuilder<UserProfile>(
-                                        future: _profile,
-                                        builder: (context, snapshot) => Text(
-                                              snapshot.data?.fullName ??
-                                                  (snapshot.hasError
-                                                      ? 'Profile unavailable'
-                                                      : 'Loading…'),
-                                              style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 17),
-                                              overflow: TextOverflow.ellipsis,
-                                            )),
+                                  const Flexible(
+                                    child: Text(
+                                      'Ahmed Ramy Zahran',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 17),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                   const SizedBox(width: 6),
                                   InkWell(
@@ -2485,16 +2585,11 @@ class _ProfilePageState extends State<_ProfilePage> {
                                 ],
                               ),
                               const SizedBox(height: 3),
-                              FutureBuilder<UserProfile>(
-                                  future: _profile,
-                                  builder: (context, snapshot) => Text(
-                                        snapshot.hasData
-                                            ? '${snapshot.data!.email} · Since ${snapshot.data!.createdAt.year}'
-                                            : '',
-                                        style: TextStyle(
-                                            color: Color(0xFFBFCFC6),
-                                            fontSize: 12.5),
-                                      )),
+                              const Text(
+                                'Premium Client · Since 2018',
+                                style: TextStyle(
+                                    color: Color(0xFFBFCFC6), fontSize: 12.5),
+                              ),
                             ],
                           ),
                         ),
@@ -2852,7 +2947,7 @@ class _EditProfileSheet extends StatefulWidget {
 }
 
 class _EditProfileSheetState extends State<_EditProfileSheet> {
-  final _nameCtrl = TextEditingController(text: 'Nour Hassan El-Sayed');
+  final _nameCtrl = TextEditingController(text: 'Ahmed Ramy Zahran');
 
   @override
   void dispose() {

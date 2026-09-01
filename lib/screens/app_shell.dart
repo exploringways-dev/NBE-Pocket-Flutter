@@ -4,7 +4,8 @@
 // HomeScreen, BudgetScreen etc. are plain bodies with no Scaffold of their own.
 
 import 'package:flutter/material.dart';
-
+import 'app_shell.dart'; 
+import 'login_screen.dart';
 import 'benefits_page.dart' show BenefitsPage;
 import 'budget_screen.dart' show BudgetScreen;
 import 'goals_page.dart' show GoalsPage;
@@ -19,42 +20,27 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
-  late final List<Widget?> _pages = <Widget?>[
-    const HomeScreen(),
-    null,
-    null,
-    null,
-  ];
-
-  Widget _createPage(int index) => switch (index) {
-        0 => const HomeScreen(),
-        1 => const BudgetScreen(),
-        2 => const GoalsPage(),
-        3 => const BenefitsPage(),
-        _ => const SizedBox.shrink(),
-      };
-
-  void _selectPage(int index) {
-    setState(() {
-      _index = index;
-      _pages[index] ??= _createPage(index);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6F5),
+
+      // IndexedStack keeps all four alive and shows only #_index.
+      // Switch to a plain `[..][_index]` if you'd rather they rebuild.
       body: IndexedStack(
         index: _index,
-        children: List<Widget>.generate(
-          _pages.length,
-          (index) => _pages[index] ?? const SizedBox.shrink(),
-        ),
+        children: const [
+          HomeScreen(),
+          BudgetScreen(),
+          GoalsPage(),
+          BenefitsPage(),
+        ],
       ),
+
       bottomNavigationBar: AppBottomNav(
         index: _index,
-        onChanged: _selectPage,
+        onChanged: (i) => setState(() => _index = i),
       ),
     );
   }

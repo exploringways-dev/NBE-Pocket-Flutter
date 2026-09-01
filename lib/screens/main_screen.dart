@@ -5,6 +5,8 @@ import 'package:vector_math/vector_math_64.dart' hide Colors;
 import 'package:flutter/rendering.dart';
 import 'notifications_page.dart' show NotificationsPage;
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
+import '../models/user_profile.dart';
 
 void main() {
   runApp(const NBEApp());
@@ -2302,6 +2304,7 @@ class _ProfilePageState extends State<_ProfilePage> {
   String _language = 'EN';
   bool _faceId = true;
   bool _smartInsights = false;
+  late final Future<UserProfile> _profile = UserService().getProfile();
 
   void _openBottomSheet(WidgetBuilder builder) {
     showModalBottomSheet(
@@ -2410,13 +2413,15 @@ class _ProfilePageState extends State<_ProfilePage> {
                             CircleAvatar(
                               radius: 28,
                               backgroundColor: Colors.white.withOpacity(0.15),
-                              child: const Text(
-                                'NS',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 18),
-                              ),
+                              child: FutureBuilder<UserProfile>(
+                                  future: _profile,
+                                  builder: (context, snapshot) => Text(
+                                        snapshot.data?.initials ?? '--',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 18),
+                                      )),
                             ),
                             Positioned(
                               right: -2,
@@ -2447,15 +2452,20 @@ class _ProfilePageState extends State<_ProfilePage> {
                             children: [
                               Row(
                                 children: [
-                                  const Flexible(
-                                    child: Text(
-                                      'Nour Hassan El-Sayed',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 17),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                  Flexible(
+                                    child: FutureBuilder<UserProfile>(
+                                        future: _profile,
+                                        builder: (context, snapshot) => Text(
+                                              snapshot.data?.fullName ??
+                                                  (snapshot.hasError
+                                                      ? 'Profile unavailable'
+                                                      : 'Loading…'),
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 17),
+                                              overflow: TextOverflow.ellipsis,
+                                            )),
                                   ),
                                   const SizedBox(width: 6),
                                   InkWell(
@@ -2475,11 +2485,16 @@ class _ProfilePageState extends State<_ProfilePage> {
                                 ],
                               ),
                               const SizedBox(height: 3),
-                              const Text(
-                                'Premium Client · Since 2018',
-                                style: TextStyle(
-                                    color: Color(0xFFBFCFC6), fontSize: 12.5),
-                              ),
+                              FutureBuilder<UserProfile>(
+                                  future: _profile,
+                                  builder: (context, snapshot) => Text(
+                                        snapshot.hasData
+                                            ? '${snapshot.data!.email} · Since ${snapshot.data!.createdAt.year}'
+                                            : '',
+                                        style: TextStyle(
+                                            color: Color(0xFFBFCFC6),
+                                            fontSize: 12.5),
+                                      )),
                             ],
                           ),
                         ),

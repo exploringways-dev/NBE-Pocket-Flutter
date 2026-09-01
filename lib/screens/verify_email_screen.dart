@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 import 'email_confirmed_screen.dart';
 import 'email_confirmation_failed_screen.dart';
 
@@ -26,39 +25,19 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     _verifyEmail();
   }
 
-Future<void> _verifyEmail() async {
+  Future<void> _verifyEmail() async {
     try {
-      // 1. Build the URL with the query parameters attached directly to it
-      final url = Uri.parse(
-        'http://10.0.2.2:5152/api/Auth/verify-email?email=${Uri.encodeComponent(widget.email)}&token=${Uri.encodeComponent(widget.token)}'
-      );
-      
-      // 2. Change from http.post to http.get (No headers or body needed for GET!)
-      final response = await http.get(url);
+      await AuthService().verifyEmail(email: widget.email, token: widget.token);
 
       if (!mounted) return;
-
-      // Print the response so you can see it succeed in the debug console!
-      print('==== API RESPONSE ====');
-      print('STATUS CODE: ${response.statusCode}');
-      print('BODY: ${response.body}');
-
-      if (response.statusCode == 200) {
-        // Success! Push the green success screen
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const EmailConfirmedScreen()),
-        );
-      } else {
-        // Failed! Push the red failure screen
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const EmailConfirmationFailedScreen()),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      print('NETWORK ERROR: $e');
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const EmailConfirmationFailedScreen()),
+        MaterialPageRoute(builder: (_) => const EmailConfirmedScreen()),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+            builder: (_) => const EmailConfirmationFailedScreen()),
       );
     }
   }

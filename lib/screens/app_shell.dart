@@ -19,27 +19,42 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+  late final List<Widget?> _pages = <Widget?>[
+    const HomeScreen(),
+    null,
+    null,
+    null,
+  ];
+
+  Widget _createPage(int index) => switch (index) {
+        0 => const HomeScreen(),
+        1 => const BudgetScreen(),
+        2 => const GoalsPage(),
+        3 => const BenefitsPage(),
+        _ => const SizedBox.shrink(),
+      };
+
+  void _selectPage(int index) {
+    setState(() {
+      _index = index;
+      _pages[index] ??= _createPage(index);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6F5),
-
-      // IndexedStack keeps all four alive and shows only #_index.
-      // Switch to a plain `[..][_index]` if you'd rather they rebuild.
       body: IndexedStack(
         index: _index,
-        children: const [
-          HomeScreen(),
-          BudgetScreen(),
-          GoalsPage(),
-          BenefitsPage(),
-        ],
+        children: List<Widget>.generate(
+          _pages.length,
+          (index) => _pages[index] ?? const SizedBox.shrink(),
+        ),
       ),
-
       bottomNavigationBar: AppBottomNav(
         index: _index,
-        onChanged: (i) => setState(() => _index = i),
+        onChanged: _selectPage,
       ),
     );
   }

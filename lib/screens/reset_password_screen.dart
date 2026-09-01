@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
+import '../services/auth_service.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String email;
@@ -36,37 +35,23 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final url = Uri.parse('http://10.0.2.2:5152/api/Auth/reset-password');
-      
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': widget.email,
-          'token': widget.token,
-          'newPassword': _newPasswordController.text,
-        }),
+      final message = await AuthService().resetPassword(
+        email: widget.email,
+        token: widget.token,
+        newPassword: _newPasswordController.text,
       );
 
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated successfully')),
-        );
-        // Returns the user to the Login screen
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to reset. The link may have expired.')),
-        );
-      }
-    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (error) {
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Network error. Check your connection.')),
+        SnackBar(content: Text(error.toString())),
       );
     }
   }
@@ -97,10 +82,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: AppColors.hintGray, fontSize: 13.5),
+            hintStyle:
+                const TextStyle(color: AppColors.hintGray, fontSize: 13.5),
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide.none,
@@ -111,7 +98,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primaryGreen, width: 1.4),
+              borderSide:
+                  const BorderSide(color: AppColors.primaryGreen, width: 1.4),
             ),
           ),
           validator: validator,
@@ -153,8 +141,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         hint: '••••••••',
                         controller: _confirmPasswordController,
                         validator: (v) {
-                          if (v == null || v.isEmpty) return 'Confirm your new password';
-                          if (v != _newPasswordController.text) return 'Passwords do not match';
+                          if (v == null || v.isEmpty) {
+                            return 'Confirm your new password';
+                          }
+                          if (v != _newPasswordController.text) {
+                            return 'Passwords do not match';
+                          }
                           return null;
                         },
                       ),
@@ -178,7 +170,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   // YOUR CUSTOM GRADIENT HEADER RESTORED!
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 8, 24, 24),
+      padding: EdgeInsets.fromLTRB(
+          24, MediaQuery.of(context).padding.top + 8, 24, 24),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -206,7 +199,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   SizedBox(width: 2),
                   Text(
                     'Back',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13),
                   ),
                 ],
               ),
@@ -215,7 +211,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           const SizedBox(height: 20),
           const Text(
             'Reset Password',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white),
+            style: TextStyle(
+                fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white),
           ),
           const SizedBox(height: 6),
           const Text(

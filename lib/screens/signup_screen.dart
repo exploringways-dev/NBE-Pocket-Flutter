@@ -40,20 +40,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // Split "Full Name" into First and Last names for the backend
       final nameParts = _fullNameController.text.trim().split(RegExp(r'\s+'));
       final firstName = nameParts.first;
-      final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : 'User';
+      final lastName =
+          nameParts.length > 1 ? nameParts.sublist(1).join(' ') : 'User';
 
-      final success = await _authService.register(
+      final result = await _authService.register(
         firstName: firstName,
         lastName: lastName,
         email: _usernameController.text.trim(),
         password: _passwordController.text,
-        confirmPassword: _confirmPasswordController.text, // <-- Added this field!
+        confirmPassword:
+            _confirmPasswordController.text, // <-- Added this field!
       );
 
-      if (success && mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully! Please sign in.'),
+          SnackBar(
+            content: Text(result.message),
             backgroundColor: AppColors.primaryGreen,
           ),
         );
@@ -95,16 +97,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         label: 'Full Name',
                         hint: 'Nour Hassan El-Sayed',
                         controller: _fullNameController,
-                        validator: (v) =>
-                            (v == null || v.isEmpty) ? 'Enter your full name' : null,
+                        validator: (v) => (v == null ||
+                                v.trim().split(RegExp(r'\s+')).length < 2)
+                            ? 'Enter your first and last name'
+                            : null,
                       ),
                       const SizedBox(height: 18),
                       LabeledTextField(
                         label: 'Username / Email',
                         hint: 'nour.elsayed@example.com',
                         controller: _usernameController,
-                        validator: (v) =>
-                            (v == null || v.isEmpty) ? 'Enter your email or username' : null,
+                        validator: (v) => (v == null || v.isEmpty)
+                            ? 'Enter your email or username'
+                            : null,
                       ),
                       const SizedBox(height: 18),
                       LabeledTextField(
@@ -112,8 +117,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         hint: '01x-xxxx-xxxx',
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
-                        validator: (v) =>
-                            (v == null || v.length < 10) ? 'Enter a valid phone number' : null,
+                        validator: (v) => (v == null || v.length < 10)
+                            ? 'Enter a valid phone number'
+                            : null,
                       ),
                       const SizedBox(height: 18),
                       LabeledTextField(
@@ -121,8 +127,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         hint: '••••••••',
                         controller: _passwordController,
                         obscureText: true,
-                        validator: (v) =>
-                            (v == null || v.length < 6) ? 'Min 6 characters' : null,
+                        validator: (v) => (v == null || v.length < 8)
+                            ? 'Min 8 characters'
+                            : null,
                       ),
                       const SizedBox(height: 18),
                       LabeledTextField(
@@ -178,7 +185,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 children: [
                   Icon(Icons.chevron_left, color: Colors.white, size: 20),
                   Text('Back to Login',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),

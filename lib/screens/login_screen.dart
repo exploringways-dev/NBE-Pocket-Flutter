@@ -9,6 +9,8 @@ import 'app_shell.dart';
 import 'forgetpass_screen.dart';
 import 'signup_screen.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../services/api_client.dart';
+import '../services/api_exception.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -78,21 +80,21 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final token = await _authService.login(
+      await _authService.login(
         email: _usernameController.text.trim(),
         password: _passwordController.text,
       );
 
-      if (token != null && mounted) {
+      if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const AppShell()),
         );
       }
-    } catch (error) {
+    } on ApiException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(error.toString().replaceAll('Exception: ', '')),
+            content: Text(error.message),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -114,7 +116,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (didAuthenticate && mounted) {
         // 1. Check if the user has a saved token from a previous manual login
-        final token = await _storage.read(key: 'jwt_token');
+        final token = await _storage.read(key: ApiClient.accessTokenKey);
+
+        if (!mounted) return;
 
         if (token != null && token.isNotEmpty) {
           // Success! They proved who they are AND they have an active session.
@@ -125,7 +129,8 @@ class _LoginScreenState extends State<LoginScreen> {
           // They verified their fingerprint, but they don't have a saved login.
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Please log in with your email and password first to enable biometrics.'),
+              content: const Text(
+                  'Please log in with your email and password first to enable biometrics.'),
               backgroundColor: Colors.orange.shade800,
             ),
           );

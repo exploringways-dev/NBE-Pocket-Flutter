@@ -8,6 +8,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../services/category_service.dart';
 
 // ---------------------------------------------------------------------------
 // Theme tokens
@@ -150,13 +151,14 @@ class BudgetCategory {
   }
 
   BudgetCategory copyWith({
+    String? id,
     String? name,
     String? icon,
     double? spent,
     double? limit,
   }) {
     return BudgetCategory(
-      id: id,
+      id: id ?? this.id,
       name: name ?? this.name,
       icon: icon ?? this.icon,
       spent: spent ?? this.spent,
@@ -361,6 +363,8 @@ class BudgetScreen extends StatefulWidget {
 
 class _BudgetScreenState extends State<BudgetScreen> {
   final _repo = BudgetRepository();
+  final _categoryService = CategoryService();
+  bool _categoriesLoading = true;
 
   /// The month currently on screen. Normalised to day 1.
   late DateTime _selectedMonth;
@@ -379,6 +383,32 @@ class _BudgetScreenState extends State<BudgetScreen> {
     final now = DateTime(2026, 8, 19);
     _selectedMonth = DateTime(now.year, now.month);
     _lastAllowedMonth = DateTime(now.year, now.month);
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final apiCategories = await _categoryService.getAll();
+      if (!mounted) return;
+      final categories = apiCategories
+          .map((category) => BudgetCategory(
+                id: category.id.toString(),
+                name: category.name,
+                icon: 'files',
+                spent: 0,
+                limit: 1,
+              ))
+          .toList();
+      _repo.save(MonthlyBudget(month: _selectedMonth, categories: categories));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load categories: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _categoriesLoading = false);
+    }
   }
 
   MonthlyBudget get _budget => _repo.budgetFor(_selectedMonth);
@@ -445,6 +475,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 child: Text('CATEGORIES', style: AppText.sectionLabel),
               ),
             ),
+            if (_categoriesLoading)
+              const SliverToBoxAdapter(
+                child: Center(child: CircularProgressIndicator()),
+              ),
             SliverList.builder(
               itemCount: budget.categories.length,
               itemBuilder: (context, index) {
@@ -487,7 +521,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  void _handleCategoryAction(BudgetCategory category, String action) {
+  Future<void> _handleCategoryAction(
+      BudgetCategory category, String action) async {
     switch (action) {
       case 'edit':
         _editCategory(category);
@@ -496,6 +531,18 @@ class _BudgetScreenState extends State<BudgetScreen> {
         _updateCategory(category.copyWith(limit: 0));
         break;
       case 'delete':
+        final id = int.tryParse(category.id);
+        if (id == null) return;
+        try {
+          await _categoryService.delete(id);
+        } catch (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(error.toString())));
+          }
+          return;
+        }
+        if (!mounted) return;
         setState(() {
           final updated =
               _budget.categories.where((c) => c.id != category.id).toList();
@@ -521,7 +568,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
       isScrollControlled: true,
       builder: (_) => _EditCategorySheet(category: category),
     );
-    if (result != null) _updateCategory(result);
+    if (result != null) {
+      final id = int.tryParse(category.id);
+      if (id == null) return;
+      try {
+        await _categoryService.update(id, result.name);
+        if (mounted) _updateCategory(result);
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(error.toString())));
+        }
+      }
+    }
   }
 
   Future<void> _addCategory() async {
@@ -533,10 +592,21 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
     if (result == null) return;
 
-    setState(() {
-      final categories = [..._budget.categories, result];
-      _repo.save(MonthlyBudget(month: _selectedMonth, categories: categories));
-    });
+    try {
+      final created = await _categoryService.create(result.name);
+      if (!mounted) return;
+      final saved = result.copyWith(id: created.id.toString());
+      setState(() {
+        final categories = [..._budget.categories, saved];
+        _repo
+            .save(MonthlyBudget(month: _selectedMonth, categories: categories));
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 }
 

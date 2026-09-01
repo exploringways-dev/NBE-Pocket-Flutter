@@ -1,27 +1,17 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
 import 'screens/verify_email_screen.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
 import 'screens/reset_password_screen.dart';
-import 'dart:io';
-
-class DevHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..badCertificateCallback =
-          (X509Certificate cert, String host, int port) => true;
-  }
-}
+import 'screens/app_shell.dart';
+import 'services/auth_service.dart';
+import 'config/api_config.dart';
 
 void main() {
-  if (kDebugMode) {
-    HttpOverrides.global = DevHttpOverrides();
-  }
   WidgetsFlutterBinding.ensureInitialized();
+  ApiConfig.validate();
   runApp(const NBEApp());
 }
 
@@ -101,7 +91,7 @@ class _NBEAppState extends State<NBEApp> {
       navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      home: const LoginScreen(),
+      home: const _SessionGate(),
 
       // 1. ADDED THIS: Flutter natively intercepts deep links here!
       onGenerateRoute: (settings) {
@@ -134,6 +124,31 @@ class _NBEAppState extends State<NBEApp> {
         return MaterialPageRoute(
           builder: (context) => const LoginScreen(),
         );
+      },
+    );
+  }
+}
+
+class _SessionGate extends StatefulWidget {
+  const _SessionGate();
+
+  @override
+  State<_SessionGate> createState() => _SessionGateState();
+}
+
+class _SessionGateState extends State<_SessionGate> {
+  late final Future<bool> _session = AuthService().restoreSession();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _session,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        }
+        return snapshot.data == true ? const AppShell() : const LoginScreen();
       },
     );
   }

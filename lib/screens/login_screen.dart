@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import 'app_shell.dart';
 import 'forgetpass_screen.dart';
 import 'signup_screen.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +18,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _storage = const FlutterSecureStorage();
   final AuthService _authService = AuthService();
   final LocalAuthentication _localAuth = LocalAuthentication();
   final _formKey = GlobalKey<FormState>();
@@ -111,9 +113,23 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (didAuthenticate && mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AppShell()),
-        );
+        // 1. Check if the user has a saved token from a previous manual login
+        final token = await _storage.read(key: 'jwt_token');
+
+        if (token != null && token.isNotEmpty) {
+          // Success! They proved who they are AND they have an active session.
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const AppShell()),
+          );
+        } else {
+          // They verified their fingerprint, but they don't have a saved login.
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Please log in with your email and password first to enable biometrics.'),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

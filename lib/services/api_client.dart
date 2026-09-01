@@ -11,13 +11,13 @@ class ApiClient {
 
   final _storage = const FlutterSecureStorage();
 
-  String get baseUrl {
+String get baseUrl {
     if (kIsWeb || Platform.isWindows) {
-      return 'https://192.168.56.1/NBEPocketAPI/api';
+      return 'https://192.168.1.16/NBEPocketAPI/api'; // Removed /NBEPocketAPI
     } else if (Platform.isAndroid) {
-      return 'https://192.168.56.1/NBEPocketAPI/api';
+      return 'https://192.168.1.16/NBEPocketAPI/api'; // Removed /NBEPocketAPI
     } else {
-      return 'https://192.168.56.1/NBEPocketAPI/api';
+      return 'https://192.168.1.16/NBEPocketAPI/api'; // Removed /NBEPocketAPI
     }
   }
 

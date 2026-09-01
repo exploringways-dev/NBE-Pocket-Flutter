@@ -9,17 +9,17 @@ class ApiConfig {
   );
 
   static String get baseUrl {
-    final configured = _configuredBaseUrl.trim();
-    if (configured.isNotEmpty) {
-      return configured.replaceAll(RegExp(r'/$'), '');
-    }
+    // final configured = _configuredBaseUrl.trim();
+    // if (configured.isNotEmpty) {
+    //   return configured.replaceAll(RegExp(r'/$'), '');
+    // }
 
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.211.55.5:5152/api';
+      return 'https://192.168.1.5/NBEPocketAPI';
     }
 
     // iOS Simulator, macOS, Windows, Linux, and local web development.
-    return 'http://10.211.55.5:5152/api';
+    return 'https://192.168.1.5/NBEPocketAPI';
   }
 
   static const Duration requestTimeout = Duration(seconds: 30);

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
 import 'screens/verify_email_screen.dart';
@@ -12,7 +13,16 @@ import 'config/api_config.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   ApiConfig.validate();
+  HttpOverrides.global = DevHttpOverrides();
   runApp(const NBEApp());
+}
+
+class DevHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
 }
 
 class NBEApp extends StatefulWidget {

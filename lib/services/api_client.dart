@@ -72,6 +72,12 @@ class ApiClient {
           throw ArgumentError('Unsupported HTTP method: $method');
       }
 
+      print('\n=== DEBUG API CALL ===');
+      print('Target URL: ${uri.toString()}');
+      print('Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+      print('======================\n');
+
       if (response.statusCode == 401 &&
           authenticated &&
           retryAfterRefresh &&
@@ -157,7 +163,7 @@ class ApiClient {
     final refreshToken = await _storage.read(key: refreshTokenKey);
     if (refreshToken == null || refreshToken.isEmpty) return false;
     try {
-      final data = await post('/Auth/refresh',
+      final data = await post('/api/Auth/refresh',
           body: {'refreshToken': refreshToken}, authenticated: false);
       if (data is! Map<String, dynamic>) return false;
       await saveSession(data);

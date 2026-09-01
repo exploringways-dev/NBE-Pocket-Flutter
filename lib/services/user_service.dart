@@ -7,7 +7,7 @@ class UserService {
   final ApiClient _api;
 
   Future<UserProfile> getProfile() async {
-    final data = await _api.get('/Users/profile');
+    final data = await _api.get('/api/Users/profile');
     if (data is! Map<String, dynamic>) {
       throw const ApiException('The server returned an invalid profile.');
     }

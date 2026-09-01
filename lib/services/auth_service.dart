@@ -20,7 +20,8 @@ class AuthService {
     required String password,
     required String confirmPassword,
   }) async {
-    final data = await _api.post('/Auth/register', authenticated: false, body: {
+    // Added /api/ here
+    final data = await _api.post('/api/Auth/register', authenticated: false, body: {
       'firstName': firstName,
       'lastName': lastName,
       'email': email,
@@ -36,7 +37,8 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final data = await _api.post('/Auth/login', authenticated: false, body: {
+    // Added /api/ here
+    final data = await _api.post('/api/Auth/login', authenticated: false, body: {
       'email': email,
       'password': password,
     });
@@ -51,15 +53,17 @@ class AuthService {
   Future<String> verifyEmail(
       {required String email, required String token}) async {
     final query = Uri(queryParameters: {'email': email, 'token': token}).query;
+    // Added /api/ here
     final data =
-        await _api.get('/Auth/verify-email?$query', authenticated: false);
+        await _api.get('/api/Auth/verify-email?$query', authenticated: false);
     return data is Map && data['message'] is String
         ? data['message'] as String
         : 'Email verified.';
   }
 
   Future<String> forgotPassword(String email) async {
-    final data = await _api.post('/Auth/forgot-password',
+    // Added /api/ here
+    final data = await _api.post('/api/Auth/forgot-password',
         authenticated: false, body: {'email': email});
     return data is Map && data['message'] is String
         ? data['message'] as String
@@ -70,8 +74,9 @@ class AuthService {
       {required String email,
       required String token,
       required String newPassword}) async {
+    // Added /api/ here
     final data =
-        await _api.post('/Auth/reset-password', authenticated: false, body: {
+        await _api.post('/api/Auth/reset-password', authenticated: false, body: {
       'email': email,
       'token': token,
       'newPassword': newPassword,
@@ -86,7 +91,8 @@ class AuthService {
     final refresh = await _storage.read(key: ApiClient.refreshTokenKey);
     if (access == null || refresh == null) return false;
     try {
-      await _api.get('/Users/profile');
+      // Change this line to include /api/
+      await _api.get('/api/Users/profile'); 
       return true;
     } catch (_) {
       await ApiClient.clearSession();
@@ -98,7 +104,8 @@ class AuthService {
     final refresh = await _storage.read(key: ApiClient.refreshTokenKey);
     if (refresh != null) {
       try {
-        await _api.post('/Auth/revoke',
+        // Added /api/ here
+        await _api.post('/api/Auth/revoke',
             authenticated: false, body: {'refreshToken': refresh});
       } catch (_) {
         // Local logout must complete even when the API is unreachable.
